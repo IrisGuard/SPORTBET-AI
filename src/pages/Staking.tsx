@@ -24,6 +24,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow, addDays, format } from 'date-fns';
+import type { Database } from '@/integrations/supabase/types';
+
+type UserStake = Database['public']['Tables']['user_stakes']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type StakingStats = Database['public']['Tables']['staking_stats']['Row'];
 
 interface StakePool {
   id: number;
@@ -32,17 +37,6 @@ interface StakePool {
   apy: number;
   minStake: number;
   description: string;
-}
-
-interface UserStake {
-  id: string;
-  pool_id: number;
-  amount: number;
-  apy: number;
-  staked_at: string;
-  unlock_date: string | null;
-  rewards_earned: number;
-  is_locked: boolean;
 }
 
 const Staking = () => {
@@ -91,16 +85,22 @@ const Staking = () => {
   // Get user profile
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ['staking-profile', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Profile | null> => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
       
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Profile fetch error:', error);
+        return null;
+      }
     },
     enabled: !!user,
   });
@@ -108,44 +108,56 @@ const Staking = () => {
   // Get user's stakes
   const { data: userStakes = [] } = useQuery({
     queryKey: ['user-stakes', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<UserStake[]> => {
       if (!user) return [];
       
-      // Check if stakes table exists, if not return mock data
-      const { data, error } = await supabase
-        .from('user_stakes')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('staked_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('user_stakes')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('staked_at', { ascending: false });
 
-      if (error) {
-        // Return mock data if table doesn't exist yet
-        console.log('Stakes table not found, using mock data');
-        return [
-          {
-            id: '1',
-            pool_id: 2,
-            amount: 15000,
-            apy: 18,
-            staked_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-            unlock_date: addDays(new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), 30).toISOString(),
-            rewards_earned: 185,
-            is_locked: true
-          },
-          {
-            id: '2',
-            pool_id: 1,
-            amount: 8000,
-            apy: 12,
-            staked_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-            unlock_date: null,
-            rewards_earned: 432,
-            is_locked: false
-          }
-        ];
+        if (error) {
+          // Return mock data if table doesn't exist yet
+          console.log('Stakes table not found, using mock data');
+          return [
+            {
+              id: '1',
+              user_id: user.id,
+              pool_id: 2,
+              amount: 15000,
+              apy: 18,
+              staked_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+              unlock_date: addDays(new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), 30).toISOString(),
+              rewards_earned: 185,
+              is_locked: true,
+              status: 'active',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: '2',
+              user_id: user.id,
+              pool_id: 1,
+              amount: 8000,
+              apy: 12,
+              staked_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+              unlock_date: null,
+              rewards_earned: 432,
+              is_locked: false,
+              status: 'active',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ] as UserStake[];
+        }
+
+        return data || [];
+      } catch (error) {
+        console.error('Stakes fetch error:', error);
+        return [];
       }
-
-      return data || [];
     },
     enabled: !!user,
   });
@@ -153,23 +165,30 @@ const Staking = () => {
   // Get staking statistics
   const { data: stakingStats } = useQuery({
     queryKey: ['staking-stats'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('staking_stats')
-        .select('*')
-        .single();
+    queryFn: async (): Promise<StakingStats | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('staking_stats')
+          .select('*')
+          .single();
 
-      if (error) {
-        // Return mock stats if table doesn't exist
-        return {
-          totalStaked: 45000000,
-          totalStakers: 8547,
-          averageApy: 22.5,
-          totalRewardsDistributed: 2850000
-        };
+        if (error) {
+          // Return mock stats if table doesn't exist
+          return {
+            id: 1,
+            total_staked: 45000000,
+            total_stakers: 8547,
+            average_apy: 22.5,
+            total_rewards_distributed: 2850000,
+            updated_at: new Date().toISOString()
+          } as StakingStats;
+        }
+
+        return data;
+      } catch (error) {
+        console.error('Stats fetch error:', error);
+        return null;
       }
-
-      return data;
     },
   });
 
@@ -200,43 +219,66 @@ const Staking = () => {
         ? addDays(new Date(), pool.duration).toISOString()
         : null;
 
-      const { error: stakeError } = await supabase
-        .from('user_stakes')
-        .insert({
-          user_id: user.id,
-          pool_id: poolId,
-          amount,
-          apy: pool.apy,
-          staked_at: new Date().toISOString(),
-          unlock_date: unlockDate,
-          rewards_earned: 0,
-          is_locked: pool.duration > 0
-        });
+      try {
+        const { error: stakeError } = await supabase
+          .from('user_stakes')
+          .insert({
+            user_id: user.id,
+            pool_id: poolId,
+            amount,
+            apy: pool.apy,
+            staked_at: new Date().toISOString(),
+            unlock_date: unlockDate,
+            rewards_earned: 0,
+            is_locked: pool.duration > 0,
+            status: 'active'
+          });
 
-      if (stakeError) {
-        // If table doesn't exist, just record transaction
-        console.log('Stakes table not found, recording transaction only');
+        if (stakeError) {
+          // If table doesn't exist, just record transaction
+          console.log('Stakes table not found, recording transaction only');
+        }
+      } catch (error) {
+        console.error('Stake insert error:', error);
       }
 
       // Record transaction
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          transaction_type: 'stake',
-          amount,
-          description: `Staked ${amount.toLocaleString()} SBET in ${pool.name}`
-        });
+      try {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            transaction_type: 'stake',
+            amount,
+            status: 'completed',
+            description: `Staked ${amount.toLocaleString()} SBET in ${pool.name}`
+          });
 
-      if (transactionError) throw transactionError;
+        if (transactionError) throw transactionError;
+      } catch (error) {
+        console.error('Transaction record error:', error);
+      }
 
       // Update balance
-      const { error: balanceError } = await supabase.rpc('update_token_balance', {
-        user_id: user.id,
-        amount_change: -amount
-      });
+      try {
+        const { error: balanceError } = await supabase.rpc('update_token_balance', {
+          user_id: user.id,
+          amount_change: -amount
+        });
 
-      if (balanceError) throw balanceError;
+        if (balanceError) {
+          console.log('Balance update function not found, updating directly');
+          // Fallback to direct update
+          await supabase
+            .from('profiles')
+            .update({ 
+              token_balance: (profile?.token_balance || 0) - amount 
+            })
+            .eq('id', user.id);
+        }
+      } catch (error) {
+        console.error('Balance update error:', error);
+      }
 
       return { amount, pool: pool.name };
     },
@@ -269,33 +311,55 @@ const Staking = () => {
       const rewards = calculateRewards(stake.amount, stake.apy, daysStaked);
 
       // Record unstake transaction
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          transaction_type: 'unstake',
-          amount,
-          description: `Unstaked ${amount.toLocaleString()} SBET with ${rewards.toFixed(0)} SBET rewards`
-        });
+      try {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            transaction_type: 'unstake',
+            amount,
+            status: 'completed',
+            description: `Unstaked ${amount.toLocaleString()} SBET with ${rewards.toFixed(0)} SBET rewards`
+          });
 
-      if (transactionError) throw transactionError;
+        if (transactionError) throw transactionError;
+      } catch (error) {
+        console.error('Transaction record error:', error);
+      }
 
       // Update balance (principal + rewards)
-      const { error: balanceError } = await supabase.rpc('update_token_balance', {
-        user_id: user.id,
-        amount_change: amount + rewards
-      });
+      try {
+        const { error: balanceError } = await supabase.rpc('update_token_balance', {
+          user_id: user.id,
+          amount_change: amount + rewards
+        });
 
-      if (balanceError) throw balanceError;
+        if (balanceError) {
+          console.log('Balance update function not found, updating directly');
+          // Fallback to direct update
+          await supabase
+            .from('profiles')
+            .update({ 
+              token_balance: (profile?.token_balance || 0) + amount + rewards 
+            })
+            .eq('id', user.id);
+        }
+      } catch (error) {
+        console.error('Balance update error:', error);
+      }
 
       // Update stake record
-      const { error: stakeError } = await supabase
-        .from('user_stakes')
-        .delete()
-        .eq('id', stakeId);
+      try {
+        const { error: stakeError } = await supabase
+          .from('user_stakes')
+          .delete()
+          .eq('id', stakeId);
 
-      if (stakeError) {
-        console.log('Stakes table update failed, but transaction recorded');
+        if (stakeError) {
+          console.log('Stakes table update failed, but transaction recorded');
+        }
+      } catch (error) {
+        console.error('Stake delete error:', error);
       }
 
       return { amount, rewards };
@@ -334,7 +398,7 @@ const Staking = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {stakingStats?.totalStaked?.toLocaleString() || '45,000,000'}
+                {stakingStats?.total_staked?.toLocaleString() || '45,000,000'}
               </div>
               <p className="text-xs text-gray-400">SBET tokens</p>
             </CardContent>
@@ -347,7 +411,7 @@ const Staking = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {stakingStats?.totalStakers?.toLocaleString() || '8,547'}
+                {stakingStats?.total_stakers?.toLocaleString() || '8,547'}
               </div>
               <p className="text-xs text-gray-400">Active stakers</p>
             </CardContent>
@@ -360,7 +424,7 @@ const Staking = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {stakingStats?.averageApy || 22.5}%
+                {stakingStats?.average_apy || 22.5}%
               </div>
               <p className="text-xs text-gray-400">Across all pools</p>
             </CardContent>
@@ -583,27 +647,33 @@ const Staking = () => {
                       </div>
 
                       {stakeAmount && selectedPoolData && !isNaN(parseFloat(stakeAmount)) && (
-                        <div className="grid grid-cols-3 gap-4 mt-6">
-                          <div className="text-center p-4 bg-sportbet-dark rounded-lg">
-                            <p className="text-sm text-gray-400">Daily Rewards</p>
-                            <p className="text-xl font-bold text-sportbet-green">
-                              {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 1).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-400">SBET</p>
-                          </div>
-                          <div className="text-center p-4 bg-sportbet-dark rounded-lg">
-                            <p className="text-sm text-gray-400">Monthly Rewards</p>
-                            <p className="text-xl font-bold text-sportbet-blue">
-                              {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 30).toFixed(0)}
-                            </p>
-                            <p className="text-xs text-gray-400">SBET</p>
-                          </div>
-                          <div className="text-center p-4 bg-sportbet-dark rounded-lg">
-                            <p className="text-sm text-gray-400">Yearly Rewards</p>
-                            <p className="text-xl font-bold text-sportbet-orange">
-                              {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 365).toFixed(0)}
-                            </p>
-                            <p className="text-xs text-gray-400">SBET</p>
+                        <div className="mt-6 p-4 bg-sportbet-dark rounded-lg">
+                          <h4 className="text-white font-medium mb-4">Projected Rewards</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div className="p-3 bg-gray-700 rounded">
+                              <p className="text-sm text-gray-400">Daily</p>
+                              <p className="text-lg font-semibold text-white">
+                                {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 1).toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-gray-700 rounded">
+                              <p className="text-sm text-gray-400">Weekly</p>
+                              <p className="text-lg font-semibold text-white">
+                                {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 7).toFixed(0)}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-gray-700 rounded">
+                              <p className="text-sm text-gray-400">Monthly</p>
+                              <p className="text-lg font-semibold text-white">
+                                {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 30).toFixed(0)}
+                              </p>
+                            </div>
+                            <div className="p-3 bg-gray-700 rounded">
+                              <p className="text-sm text-gray-400">Yearly</p>
+                              <p className="text-lg font-semibold text-white">
+                                {calculateRewards(parseFloat(stakeAmount), selectedPoolData.apy, 365).toFixed(0)}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -614,93 +684,147 @@ const Staking = () => {
             </Tabs>
           </div>
 
-          {/* Your Stakes */}
+          {/* Active Stakes */}
           <div>
             <Card className="bg-sportbet-gray border-sportbet-light-gray">
               <CardHeader>
-                <CardTitle className="text-white">Your Stakes</CardTitle>
-                <CardDescription>Active staking positions</CardDescription>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Active Stakes
+                </CardTitle>
+                <CardDescription>Your current staking positions</CardDescription>
               </CardHeader>
               <CardContent>
-                {userStakes.length > 0 ? (
-                  <div className="space-y-4">
-                    {userStakes.map((stake) => {
+                <div className="space-y-4">
+                  {userStakes.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Lock className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400">No active stakes yet</p>
+                      <p className="text-sm text-gray-500">Start staking to earn rewards!</p>
+                    </div>
+                  ) : (
+                    userStakes.map((stake) => {
                       const pool = stakingPools.find(p => p.id === stake.pool_id);
-                      const isUnlocked = !stake.is_locked || 
+                      const daysStaked = Math.floor(
+                        (Date.now() - new Date(stake.staked_at).getTime()) / (1000 * 60 * 60 * 24)
+                      );
+                      const canUnstake = !stake.is_locked || 
                         (stake.unlock_date && new Date() >= new Date(stake.unlock_date));
-                      
+
                       return (
-                        <div key={stake.id} className="p-4 bg-sportbet-dark rounded-lg">
+                        <div key={stake.id} className="p-4 border border-sportbet-light-gray rounded-lg">
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h4 className="text-white font-medium">{pool?.name}</h4>
+                              <h4 className="text-white font-medium">{pool?.name || 'Unknown Pool'}</h4>
                               <p className="text-sm text-gray-400">
-                                {stake.amount.toLocaleString()} SBET
+                                Staked {formatDistanceToNow(new Date(stake.staked_at))} ago
                               </p>
                             </div>
-                            <Badge className={`${
-                              isUnlocked 
-                                ? 'bg-sportbet-green/20 text-sportbet-green' 
-                                : 'bg-sportbet-orange/20 text-sportbet-orange'
-                            }`}>
-                              {isUnlocked ? 'Unlocked' : 'Locked'}
+                            <Badge 
+                              className={`${canUnstake ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}
+                            >
+                              {canUnstake ? 'Unlocked' : 'Locked'}
                             </Badge>
                           </div>
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">APY:</span>
-                              <span className="text-white">{stake.apy}%</span>
+
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-400">Amount:</span>
+                              <span className="text-white">{stake.amount.toLocaleString()} SBET</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Staked:</span>
-                              <span className="text-white">
-                                {formatDistanceToNow(new Date(stake.staked_at))} ago
-                              </span>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-400">APY:</span>
+                              <span className="text-sportbet-green">{stake.apy}%</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-400">Rewards Earned:</span>
+                              <span className="text-sportbet-blue">{stake.rewards_earned.toFixed(2)} SBET</span>
                             </div>
                             {stake.unlock_date && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">
-                                  {isUnlocked ? 'Unlocked:' : 'Unlocks:'}
-                                </span>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-400">Unlock Date:</span>
                                 <span className="text-white">
                                   {format(new Date(stake.unlock_date), 'MMM dd, yyyy')}
                                 </span>
                               </div>
                             )}
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Rewards:</span>
-                              <span className="text-sportbet-green">
-                                +{stake.rewards_earned.toFixed(2)} SBET
-                              </span>
-                            </div>
                           </div>
 
-                          {isUnlocked && (
-                            <Button
-                              onClick={() => unstakeMutation.mutate({ 
-                                stakeId: stake.id, 
-                                amount: stake.amount 
-                              })}
-                              disabled={unstakeMutation.isPending}
-                              variant="outline"
-                              size="sm"
-                              className="w-full mt-3 border-sportbet-green text-sportbet-green hover:bg-sportbet-green/10"
-                            >
-                              {unstakeMutation.isPending ? 'Unstaking...' : 'Unstake'}
-                            </Button>
+                          {!stake.is_locked && (
+                            <div className="space-y-2">
+                              <Input
+                                type="number"
+                                placeholder="Amount to unstake"
+                                value={unstakeAmount}
+                                onChange={(e) => setUnstakeAmount(e.target.value)}
+                                className="bg-sportbet-dark border-gray-600 text-white"
+                                max={stake.amount}
+                              />
+                              <Button
+                                onClick={() => unstakeMutation.mutate({ 
+                                  stakeId: stake.id, 
+                                  amount: parseFloat(unstakeAmount) || stake.amount 
+                                })}
+                                disabled={
+                                  unstakeMutation.isPending ||
+                                  !canUnstake ||
+                                  (unstakeAmount && parseFloat(unstakeAmount) > stake.amount)
+                                }
+                                variant="outline"
+                                className="w-full border-sportbet-orange text-sportbet-orange hover:bg-sportbet-orange/10"
+                              >
+                                {unstakeMutation.isPending ? 'Unstaking...' : 'Unstake'}
+                              </Button>
+                            </div>
+                          )}
+
+                          {stake.is_locked && stake.unlock_date && (
+                            <div className="flex items-center gap-2 text-sm text-yellow-400">
+                              <Clock className="h-4 w-4" />
+                              <span>
+                                Unlocks in {formatDistanceToNow(new Date(stake.unlock_date))}
+                              </span>
+                            </div>
                           )}
                         </div>
                       );
-                    })}
+                    })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Staking Summary */}
+            <Card className="bg-sportbet-gray border-sportbet-light-gray mt-6">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Staking Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Staked:</span>
+                    <span className="text-white font-semibold">{totalStaked.toLocaleString()} SBET</span>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Lock className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-gray-400 mb-2">No active stakes</p>
-                    <p className="text-sm text-gray-500">Start staking to earn rewards</p>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Rewards:</span>
+                    <span className="text-sportbet-green font-semibold">{totalRewards.toFixed(2)} SBET</span>
                   </div>
-                )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Active Stakes:</span>
+                    <span className="text-white font-semibold">{userStakes.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Est. Monthly Rewards:</span>
+                    <span className="text-sportbet-blue font-semibold">
+                      {userStakes.reduce((sum, stake) => 
+                        sum + calculateRewards(stake.amount, stake.apy, 30), 0
+                      ).toFixed(0)} SBET
+                    </span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

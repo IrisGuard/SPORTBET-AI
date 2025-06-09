@@ -231,79 +231,102 @@ export type Database = {
       }
       predictions: {
         Row: {
-          competition: string
-          confidence: number
-          created_at: string
-          explanation: string | null
           id: string
-          is_free: boolean
-          match_date: string
-          prediction: string
-          price: number
-          result: string | null
-          sport: string
-          team_a: string
-          team_b: string
+          user_id: string
+          match_id: string
+          prediction_type: string
+          predicted_outcome: string
+          odds: number
+          stake_amount: number
+          potential_payout: number
+          status: string
+          created_at: string
+          resolved_at: string | null
+          actual_outcome: string | null
         }
         Insert: {
-          competition: string
-          confidence: number
-          created_at?: string
-          explanation?: string | null
           id?: string
-          is_free?: boolean
-          match_date: string
-          prediction: string
-          price: number
-          result?: string | null
-          sport: string
-          team_a: string
-          team_b: string
+          user_id: string
+          match_id: string
+          prediction_type: string
+          predicted_outcome: string
+          odds: number
+          stake_amount: number
+          potential_payout: number
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+          actual_outcome?: string | null
         }
         Update: {
-          competition?: string
-          confidence?: number
-          created_at?: string
-          explanation?: string | null
           id?: string
-          is_free?: boolean
-          match_date?: string
-          prediction?: string
-          price?: number
-          result?: string | null
-          sport?: string
-          team_a?: string
-          team_b?: string
+          user_id?: string
+          match_id?: string
+          prediction_type?: string
+          predicted_outcome?: string
+          odds?: number
+          stake_amount?: number
+          potential_payout?: number
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+          actual_outcome?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "predictions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       profiles: {
         Row: {
+          id: string
+          email: string | null
+          full_name: string | null
           avatar_url: string | null
           created_at: string
-          id: string
-          solana_wallet: string | null
-          token_balance: number | null
           updated_at: string
-          username: string | null
+          token_balance: number | null
+          total_predictions: number | null
+          successful_predictions: number | null
+          win_rate: number | null
+          total_earned: number | null
+          current_streak: number | null
+          favorite_sport: string | null
         }
         Insert: {
+          id: string
+          email?: string | null
+          full_name?: string | null
           avatar_url?: string | null
           created_at?: string
-          id: string
-          solana_wallet?: string | null
-          token_balance?: number | null
           updated_at?: string
-          username?: string | null
+          token_balance?: number | null
+          total_predictions?: number | null
+          successful_predictions?: number | null
+          win_rate?: number | null
+          total_earned?: number | null
+          current_streak?: number | null
+          favorite_sport?: string | null
         }
         Update: {
+          id?: string
+          email?: string | null
+          full_name?: string | null
           avatar_url?: string | null
           created_at?: string
-          id?: string
-          solana_wallet?: string | null
-          token_balance?: number | null
           updated_at?: string
-          username?: string | null
+          token_balance?: number | null
+          total_predictions?: number | null
+          successful_predictions?: number | null
+          win_rate?: number | null
+          total_earned?: number | null
+          current_streak?: number | null
+          favorite_sport?: string | null
         }
         Relationships: []
       }
@@ -333,58 +356,91 @@ export type Database = {
       }
       transactions: {
         Row: {
+          id: string
+          user_id: string
+          transaction_type: string
           amount: number
-          created_at: string
+          status: string
           description: string | null
-          id: string
-          transaction_type: string
-          user_id: string
+          created_at: string
+          metadata: Json | null
         }
         Insert: {
+          id?: string
+          user_id: string
+          transaction_type: string
           amount: number
-          created_at?: string
+          status?: string
           description?: string | null
-          id?: string
-          transaction_type: string
-          user_id: string
+          created_at?: string
+          metadata?: Json | null
         }
         Update: {
-          amount?: number
-          created_at?: string
-          description?: string | null
           id?: string
+          user_id?: string
           transaction_type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_predictions: {
-        Row: {
-          id: string
-          prediction_id: string
-          purchased_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          prediction_id: string
-          purchased_at?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          prediction_id?: string
-          purchased_at?: string
-          user_id?: string
+          amount?: number
+          status?: string
+          description?: string | null
+          created_at?: string
+          metadata?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "user_predictions_prediction_id_fkey"
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_prediction_purchases: {
+        Row: {
+          id: string
+          user_id: string
+          prediction_id: string
+          amount_paid: number
+          payment_method: string
+          payment_status: string
+          created_at: string
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          prediction_id: string
+          amount_paid: number
+          payment_method: string
+          payment_status?: string
+          created_at?: string
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          prediction_id?: string
+          amount_paid?: number
+          payment_method?: string
+          payment_status?: string
+          created_at?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_prediction_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_prediction_purchases_prediction_id_fkey"
             columns: ["prediction_id"]
             isOneToOne: false
             referencedRelation: "predictions"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       user_roles: {
@@ -408,6 +464,132 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      staking_pools: {
+        Row: {
+          id: number
+          name: string
+          duration: number
+          apy: number
+          min_stake: number
+          max_stake: number | null
+          description: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          duration: number
+          apy: number
+          min_stake: number
+          max_stake?: number | null
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          duration?: number
+          apy?: number
+          min_stake?: number
+          max_stake?: number | null
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_stakes: {
+        Row: {
+          id: string
+          user_id: string
+          pool_id: number
+          amount: number
+          apy: number
+          staked_at: string
+          unlock_date: string | null
+          rewards_earned: number
+          is_locked: boolean
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          pool_id: number
+          amount: number
+          apy: number
+          staked_at?: string
+          unlock_date?: string | null
+          rewards_earned?: number
+          is_locked?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          pool_id?: number
+          amount?: number
+          apy?: number
+          staked_at?: string
+          unlock_date?: string | null
+          rewards_earned?: number
+          is_locked?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stakes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_stakes_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "staking_pools"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      staking_stats: {
+        Row: {
+          id: number
+          total_staked: number
+          total_stakers: number
+          average_apy: number
+          total_rewards_distributed: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          total_staked?: number
+          total_stakers?: number
+          average_apy?: number
+          total_rewards_distributed?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          total_staked?: number
+          total_stakers?: number
+          average_apy?: number
+          total_rewards_distributed?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -536,6 +718,26 @@ export type Database = {
       submit_change: {
         Args: { p_table_name: string; p_record_id: string; p_changes: Json }
         Returns: string
+      }
+      update_token_balance: {
+        Args: {
+          user_id: string
+          amount_change: number
+        }
+        Returns: undefined
+      }
+      calculate_prediction_outcome: {
+        Args: {
+          prediction_id: string
+          actual_result: string
+        }
+        Returns: undefined
+      }
+      update_staking_rewards: {
+        Args: {
+          stake_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
