@@ -1,0 +1,11 @@
+
+# This file contains your Supabase project configuration info
+# DO NOT EDIT UNLESS YOU KNOW WHAT YOU'RE DOING!
+
+project_id = "nsmheerdjsmbdgdhfhys"
+password_min_length = 6 # Minimum password length
+# These variables are used for the autoinstaller script
+# If you don't use the autoinstaller, you can remove them
+# or not update them.
+[autoinstaller]
+supabase_dir = "/path/to/supabase"

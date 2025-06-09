@@ -1,0 +1,87 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 33% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 196 82% 49%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 142 65% 52%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 24 100% 54%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 196 82% 49%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 20% 10%;
+    --foreground: 210 40% 98%;
+
+    --card: 221 23% 15%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 221 23% 15%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 196 82% 49%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 142 65% 52%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 24 100% 54%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 196 82% 49%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-sportbet-dark text-foreground font-sans;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-sportbet-blue via-sportbet-blue to-sportbet-green bg-clip-text text-transparent;
+  }
+  
+  .button-glow {
+    @apply relative after:absolute after:top-0 after:right-0 after:bottom-0 after:left-0 after:bg-sportbet-blue after:blur-lg after:opacity-40 after:-z-10 after:rounded-md;
+  }
+}
